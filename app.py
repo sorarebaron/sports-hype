@@ -4,6 +4,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
+from io import BytesIO
+import matplotlib.image as mpimg
+import os
 
 def abbreviate_name(full_name):
     names = full_name.split()
@@ -33,6 +36,7 @@ if uploaded_file is not None:
     # Headers
     ax.text(0.02, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
     ax.text(0.28, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.52, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
     ax.text(0.72, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
 
     # Rows
@@ -43,5 +47,21 @@ if uploaded_file is not None:
         ax.text(0.52, 1 - (i + 1) * 0.06, bottom_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
         ax.text(0.72, 1 - (i + 1) * 0.06, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
 
+    # DraftKings logo (optional)
+    logo_path = "draftkings_logo.png"
+    if os.path.exists(logo_path):
+        logo_img = mpimg.imread(logo_path)
+        fig.figimage(logo_img, xo=fig.bbox.xmax - 200, yo=fig.bbox.ymax - 100, alpha=0.6, zorder=10)
+
     ax.axis("off")
     st.pyplot(fig)
+
+    # Download button for PNG
+    buf = BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+    st.download_button(
+        label="Download PNG",
+        data=buf.getvalue(),
+        file_name="draftkings_ownership.png",
+        mime="image/png"
+    )
