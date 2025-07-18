@@ -1,46 +1,62 @@
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import matplotlib.font_manager as fm
+from io import BytesIO
+import base64
 
-def abbreviate_name(full_name):
-    names = full_name.split()
-    if len(names) > 1:
-        return f"{names[0][0]}. {' '.join(names[1:])}"
-    return full_name
+st.set_page_config(layout="wide")
 
-st.title("DraftKings CSV")
+st.title("DraftKings CSV Visualizer")
 
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
-
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    df = df.dropna(subset=["Player", "%Drafted"])
-    df["Player"] = df["Player"].apply(abbreviate_name)
-    df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%','').astype(float)
 
-    # Sort and split
-    df_sorted = df.sort_values(by="%Drafted", ascending=False)
-    top_15 = df_sorted.head(15)
-    bottom_15 = df_sorted.tail(15)
+    # Ensure required columns exist
+    if "Player" in df.columns and "%Drafted" in df.columns:
+        df = df.dropna(subset=["Player", "%Drafted"])
 
-    fig, ax = plt.subplots(figsize=(12, 8))
-    ax.set_facecolor('black')
-    fig.patch.set_facecolor('black')
+        # Sort by %Drafted descending
+        df = df.sort_values(by="%Drafted", ascending=False)
 
-    # Headers
-    ax.text(0.02, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.28, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.72, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+        # Split into two columns
+        mid_point = len(df) // 2
+        left_df = df.iloc[:mid_point]
+        right_df = df.iloc[mid_point:]
 
-    # Rows
-    for i in range(15):
-        ax.text(0.02, 1 - (i + 1) * 0.06, top_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
-        ax.text(0.28, 1 - (i + 1) * 0.06, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
+        # Set up the plot
+        fig, ax = plt.subplots(figsize=(12, 8))
+        fig.patch.set_facecolor('black')
+        ax.set_facecolor('black')
+        ax.axis('off')
 
-        ax.text(0.52, 1 - (i + 1) * 0.06, bottom_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
-        ax.text(0.72, 1 - (i + 1) * 0.06, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
+        # Headers
+        ax.text(0.05, 1.02, "PLAYER", color='orange', fontsize=14, fontweight='bold', transform=ax.transAxes)
+        ax.text(0.35, 1.02, "%DRAFTED", color='lime', fontsize=14, fontweight='bold', transform=ax.transAxes)
+        ax.text(0.60, 1.02, "PLAYER", color='orange', fontsize=14, fontweight='bold', transform=ax.transAxes)
+        ax.text(0.90, 1.02, "%DRAFTED", color='lime', fontsize=14, fontweight='bold', transform=ax.transAxes)
 
-    ax.axis("off")
-    st.pyplot(fig)
+        # Plot data
+        for i, (idx, row) in enumerate(left_df.iterrows()):
+            ax.text(0.05, 0.95 - i * 0.05, row["Player"], color='white', fontsize=12, transform=ax.transAxes)
+            ax.text(0.35, 0.95 - i * 0.05, f'{row["%Drafted"]:.2f}%', color='lime', fontsize=12, transform=ax.transAxes)
+
+        for i, (idx, row) in enumerate(right_df.iterrows()):
+            ax.text(0.60, 0.95 - i * 0.05, row["Player"], color='white', fontsize=12, transform=ax.transAxes)
+            ax.text(0.90, 0.95 - i * 0.05, f'{row["%Drafted"]:.2f}%', color='lime', fontsize=12, transform=ax.transAxes)
+
+        st.pyplot(fig)
+
+        # Save to buffer
+        buf = BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+        buf.seek(0)
+        b64 = base64.b64encode(buf.read()).decode()
+
+        href = f'<a href="data:file/png;base64,{b64}" download="ownership_graphic.png">📥 Download PNG</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+    else:
+        st.error("CSV must contain 'Player' and '%Drafted' columns.")
