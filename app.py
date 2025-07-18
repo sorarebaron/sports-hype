@@ -2,32 +2,28 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from io import BytesIO
 
-st.set_page_config(layout="centered")
 st.title("DraftKings CSV Visualizer")
-st.markdown("### Upload DraftKings CSV")
 
-uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # Drop rows with missing player names
-    df = df.dropna(subset=["Player"])
+    if "Player" in df.columns and "%Drafted" in df.columns:
+        df = df[["Player", "%Drafted"]].dropna()
+        df = df.sort_values(by="%Drafted", ascending=False)
 
-    # Only keep necessary columns
-    display_df = df[["Player", "Drafted"]].copy()
+        fig, ax = plt.subplots(figsize=(6, 10))
+        ax.axis("off")
 
-    # Sort by Drafted %
-    display_df.sort_values(by="Drafted", ascending=False, inplace=True)
+        for i, row in enumerate(df.iterrows()):
+            player, drafted_pct = row[1]["Player"], row[1]["%Drafted"]
+            y_pos = 0.95 - i * 0.05
+            ax.text(0.05, y_pos, f'{player}', color='orange', fontsize=14, fontweight='bold', transform=ax.transAxes)
+            ax.text(0.8, y_pos, f'{drafted_pct:.2f}%', color='lime', fontsize=14, transform=ax.transAxes)
 
-    # Plot
-    fig, ax = plt.subplots(figsize=(8, len(display_df) * 0.4))
-    bars = ax.barh(display_df["Player"], display_df["Drafted"], color="lime")
-    ax.invert_yaxis()
-    ax.set_xlabel("Drafted %")
-    ax.set_title("Ownership Percentages by Fighter")
-    for i, (name, pct) in enumerate(zip(display_df["Player"], display_df["Drafted"])):
-        ax.text(pct + 0.5, i, f"{pct:.2f}%", va="center", fontsize=10, color="black")
-
-    st.pyplot(fig)
+        st.pyplot(fig)
+    else:
+        st.error("CSV must include 'Player' and '%Drafted' columns.")
