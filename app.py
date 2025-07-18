@@ -3,55 +3,45 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from PIL import Image
-import os
+import matplotlib.font_manager as fm
 
-# Set page configuration
-st.set_page_config(page_title="DraftKings Ownership Viewer", layout="wide")
+def abbreviate_name(full_name):
+    names = full_name.split()
+    if len(names) > 1:
+        return f"{names[0][0]}. {' '.join(names[1:])}"
+    return full_name
 
-# Upload CSV
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+st.title("DraftKings CSV")
+
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
+
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    df = df[["Player", "%Drafted"]]
-
-    # Sort by %Drafted descending
-    df["%Drafted"] = df["%Drafted"].str.rstrip('%').astype(float)
-    df = df.sort_values(by="%Drafted", ascending=False).reset_index(drop=True)
-
-    # Abbreviate long player names
-    def abbreviate_name(name, limit=20):
-        if len(name) > limit:
-            parts = name.split()
-            if len(parts) > 1:
-                return f"{parts[0][0]}. {' '.join(parts[1:])}"
-        return name
+    df = df.dropna(subset=["Player", "%Drafted"])
     df["Player"] = df["Player"].apply(abbreviate_name)
+    df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%','').astype(float)
 
-    # Create figure
-    fig, ax = plt.subplots(figsize=(8, 12))
-    ax.set_facecolor("black")
-    fig.patch.set_facecolor("black")
-    plt.axis("off")
+    # Sort and split
+    df_sorted = df.sort_values(by="%Drafted", ascending=False)
+    top_15 = df_sorted.head(15)
+    bottom_15 = df_sorted.tail(15)
 
-    # Load and plot DraftKings logo
-    logo_path = "draftkings_logo.png"
-    if os.path.exists(logo_path):
-        logo = Image.open(logo_path)
-        ax.imshow(logo, extent=[0, 8, len(df) + 2, len(df) + 6], aspect='auto', zorder=-1)
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.set_facecolor('black')
+    fig.patch.set_facecolor('black')
 
-    # Header
-    ax.text(0.2, len(df) + 1, "PLAYER", fontsize=14, fontweight='bold', color='#FD652F')
-    ax.text(6.5, len(df) + 1, "%DRAFTED", fontsize=14, fontweight='bold', color='white', ha='right')
+    # Headers
+    ax.text(0.02, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.28, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.72, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
 
-    # Plot data
-    for i, row in df.iterrows():
-        ax.text(0.2, len(df) - i, row["Player"], fontsize=13, color='white', va='center')
-        ax.text(6.5, len(df) - i, f'{row["%Drafted"]:.1f}%', fontsize=13, color='white', ha='right', va='center')
+    # Rows
+    for i in range(15):
+        ax.text(0.02, 1 - (i + 1) * 0.06, top_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
+        ax.text(0.28, 1 - (i + 1) * 0.06, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
 
-    # Save output
-    output_path = "/mnt/data/ownership_graphic.png"
-    plt.savefig(output_path, bbox_inches='tight', pad_inches=0.3)
-    st.image(output_path, caption="Ownership Graphic", use_column_width=True)
-    with open(output_path, "rb") as f:
-        st.download_button("Download Image", f, file_name="ownership_graphic.png", mime="image/png")
+        ax.text(0.52, 1 - (i + 1) * 0.06, bottom_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
+        ax.text(0.72, 1 - (i + 1) * 0.06, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
+
+    ax.axis("off")
+    st.pyplot(fig)
