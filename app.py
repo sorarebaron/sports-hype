@@ -1,74 +1,46 @@
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from PIL import Image
+import matplotlib.font_manager as fm
 
-# Abbreviate long player names
-def abbreviate_name(name, max_len=20):
-    try:
-        if len(name) > max_len:
-            parts = name.split()
-            if len(parts) >= 2:
-                return f"{parts[0][0]}. {' '.join(parts[1:])}"
-        return name
-    except:
-        return name
+def abbreviate_name(full_name):
+    names = full_name.split()
+    if len(names) > 1:
+        return f"{names[0][0]}. {' '.join(names[1:])}"
+    return full_name
 
-st.title("🏆 DFS MMA Ownership Report Generator")
-st.write("Upload your DraftKings MMA CSV file")
+st.title("DraftKings CSV")
 
-uploaded_file = st.file_uploader("Drag and drop file here", type=["csv"])
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-
-    # Strip column names and drop missing data
-    df.columns = df.columns.str.strip()
     df = df.dropna(subset=["Player", "%Drafted"])
-
-    # Convert %Drafted to float if it's not already
+    df["Player"] = df["Player"].apply(abbreviate_name)
     df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%','').astype(float)
 
-    # Abbreviate long names
-    df["Player"] = df["Player"].apply(abbreviate_name)
+    # Sort and split
+    df_sorted = df.sort_values(by="%Drafted", ascending=False)
+    top_15 = df_sorted.head(15)
+    bottom_15 = df_sorted.tail(15)
 
-    # Sort descending by ownership and split into two columns
-    df = df.sort_values(by="%Drafted", ascending=False).reset_index(drop=True)
-    midpoint = len(df) // 2 + len(df) % 2
-    left_df = df.iloc[:midpoint]
-    right_df = df.iloc[midpoint:].reset_index(drop=True)
-
-    # Plotting
-    fig, ax = plt.subplots(figsize=(10, 6))
-    fig.patch.set_facecolor('black')
+    fig, ax = plt.subplots(figsize=(12, 8))
     ax.set_facecolor('black')
-    ax.axis('off')
+    fig.patch.set_facecolor('black')
 
-    orange = '#FFA500'
-    green = 'lime'
+    # Headers
+    ax.text(0.02, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.28, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.72, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
 
-    ax.text(0.01, 1.02, "PLAYER", color=orange, fontsize=12, fontweight='bold', ha='left')
-    ax.text(0.35, 1.02, "%DRAFTED", color=green, fontsize=12, fontweight='bold', ha='right')
-    ax.text(0.55, 1.02, "PLAYER", color=orange, fontsize=12, fontweight='bold', ha='left')
-    ax.text(0.88, 1.02, "%DRAFTED", color=green, fontsize=12, fontweight='bold', ha='right')
+    # Rows
+    for i in range(15):
+        ax.text(0.02, 1 - (i + 1) * 0.06, top_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
+        ax.text(0.28, 1 - (i + 1) * 0.06, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
 
-    for i in range(len(left_df)):
-        y = 0.98 - i * 0.06
-        ax.text(0.01, y, left_df.iloc[i]["Player"], color='white', fontsize=11, ha='left')
-        ax.text(0.35, y, f'{left_df.iloc[i]["%Drafted"]:.2f}%', color='lime', fontsize=11, ha='right')
+        ax.text(0.52, 1 - (i + 1) * 0.06, bottom_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
+        ax.text(0.72, 1 - (i + 1) * 0.06, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
 
-    for i in range(len(right_df)):
-        y = 0.98 - i * 0.06
-        ax.text(0.55, y, right_df.iloc[i]["Player"], color='white', fontsize=11, ha='left')
-        ax.text(0.88, y, f'{right_df.iloc[i]["%Drafted"]:.2f}%', color='lime', fontsize=11, ha='right')
-
-    # Insert DraftKings logo
-    try:
-        logo = Image.open("draftkings_logo.png")
-        ax.imshow(logo, extent=[0.37, 0.63, -0.12, 0.05], aspect='auto', zorder=1)
-    except Exception as e:
-        st.warning(f"Could not load logo: {e}")
-
+    ax.axis("off")
     st.pyplot(fig)
