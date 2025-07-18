@@ -2,72 +2,56 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import io
+import matplotlib.patches as patches
+from PIL import Image
+import os
 
-st.set_page_config(page_title="DraftKings CSV Visualizer")
+# Set page configuration
+st.set_page_config(page_title="DraftKings Ownership Viewer", layout="wide")
 
-st.title("🏈 DraftKings CSV Visualizer")
-st.caption("Upload DraftKings CSV")
-
-uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-
-def abbreviate_name(name):
-    if pd.isna(name) or not isinstance(name, str):
-        return ""
-    parts = name.split()
-    if len(parts) == 1:
-        return parts[0][:4]
-    return parts[0][0] + parts[-1][:3]
-
-if uploaded_file:
+# Upload CSV
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
+    df = df[["Player", "%Drafted"]]
 
-    # Show DataFrame header for troubleshooting
-    st.subheader("CSV Preview")
-    st.dataframe(df.head())
+    # Sort by %Drafted descending
+    df["%Drafted"] = df["%Drafted"].str.rstrip('%').astype(float)
+    df = df.sort_values(by="%Drafted", ascending=False).reset_index(drop=True)
 
-    # Attempt to find ownership column
-    possible_columns = ["Drafted", "Own%", "Ownership", "Ownership %"]
-    ownership_column = None
-    for col in df.columns:
-        if col.strip() in possible_columns:
-            ownership_column = col
-            break
+    # Abbreviate long player names
+    def abbreviate_name(name, limit=20):
+        if len(name) > limit:
+            parts = name.split()
+            if len(parts) > 1:
+                return f"{parts[0][0]}. {' '.join(parts[1:])}"
+        return name
+    df["Player"] = df["Player"].apply(abbreviate_name)
 
-    if not ownership_column:
-        st.error("❌ Could not find an ownership percentage column. Please ensure your CSV includes one of the following: Drafted, Own%, Ownership.")
-    elif "Player" not in df.columns:
-        st.error("❌ Could not find a 'Player' column. Please check your CSV formatting.")
-    else:
-        ownership_df = df.groupby("Player")[ownership_column].mean().reset_index()
-        ownership_df["ShortName"] = ownership_df["Player"].apply(abbreviate_name)
-        ownership_df = ownership_df.sort_values(by=ownership_column, ascending=True)
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 12))
+    ax.set_facecolor("black")
+    fig.patch.set_facecolor("black")
+    plt.axis("off")
 
-        fig, ax = plt.subplots(figsize=(8, max(4, 0.4 * len(ownership_df))))
-        y_pos = range(len(ownership_df))
-        ax.barh(y_pos, ownership_df[ownership_column], color='mediumseagreen')
-        for i, (value, label) in enumerate(zip(ownership_df[ownership_column], ownership_df["ShortName"])):
-            ax.text(value + 0.5, i, f"{value:.2f}%", va='center', fontsize=10)
-            ax.text(0.1, i, label, va='center', fontsize=10, color='white')
+    # Load and plot DraftKings logo
+    logo_path = "draftkings_logo.png"
+    if os.path.exists(logo_path):
+        logo = Image.open(logo_path)
+        ax.imshow(logo, extent=[0, 8, len(df) + 2, len(df) + 6], aspect='auto', zorder=-1)
 
-        ax.set_yticks([])
-        ax.set_xlim(0, max(100, ownership_df[ownership_column].max() + 10))
-        ax.set_title("Player Ownership Percentages", fontsize=14)
-        ax.set_xlabel("Percent Drafted")
-        ax.set_facecolor("#222222")
-        fig.patch.set_facecolor("#222222")
-        ax.tick_params(colors='white')
-        ax.xaxis.label.set_color('white')
-        ax.title.set_color('white')
+    # Header
+    ax.text(0.2, len(df) + 1, "PLAYER", fontsize=14, fontweight='bold', color='#FD652F')
+    ax.text(6.5, len(df) + 1, "%DRAFTED", fontsize=14, fontweight='bold', color='white', ha='right')
 
-        st.pyplot(fig)
+    # Plot data
+    for i, row in df.iterrows():
+        ax.text(0.2, len(df) - i, row["Player"], fontsize=13, color='white', va='center')
+        ax.text(6.5, len(df) - i, f'{row["%Drafted"]:.1f}%', fontsize=13, color='white', ha='right', va='center')
 
-        # PNG download button
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png")
-        st.download_button(
-            label="📥 Download Chart as PNG",
-            data=buf.getvalue(),
-            file_name="ownership_chart.png",
-            mime="image/png"
-        )
+    # Save output
+    output_path = "/mnt/data/ownership_graphic.png"
+    plt.savefig(output_path, bbox_inches='tight', pad_inches=0.3)
+    st.image(output_path, caption="Ownership Graphic", use_column_width=True)
+    with open(output_path, "rb") as f:
+        st.download_button("Download Image", f, file_name="ownership_graphic.png", mime="image/png")
