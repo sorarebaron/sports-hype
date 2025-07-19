@@ -1,52 +1,61 @@
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as path_effects
+import matplotlib.image as mpimg
+import numpy as np
 import io
 
-st.set_page_config(layout="centered")
+st.set_page_config(layout="wide")
+st.title("DraftKings MMA Ownership Visualizer")
 
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
-    # Extract relevant columns from the known structure (PLAYER in col H, %DRAFTED in col J)
-    player_col = df.columns[7]
-    drafted_col = df.columns[9]
-    player_data = df[[player_col, drafted_col]].dropna()
-    player_data.columns = ["PLAYER", "%DRAFTED"]
-
-    # Clean and format data
-    player_data["%DRAFTED"] = player_data["%DRAFTED"].astype(str).str.rstrip("%").astype(float)
-    player_data = player_data.drop_duplicates(subset="PLAYER")
-    player_data = player_data.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
+    # Read specific columns by letter (H and J are index 7 and 9)
+    df = df.iloc[1:, [7, 9]]
+    df.columns = ["PLAYER", "%DRAFTED"]
+    df = df.dropna()
+    df["%DRAFTED"] = df["%DRAFTED"].astype(str).str.replace('%', '').astype(float)
+    df["PLAYER"] = df["PLAYER"].astype(str)
+    df = df.drop_duplicates(subset=["PLAYER"])
+    df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
 
     # Split into two columns
-    half = len(player_data) // 2 + len(player_data) % 2
-    left_col = player_data.iloc[:half]
-    right_col = player_data.iloc[half:]
+    half = len(df) // 2 + len(df) % 2
+    left = df.iloc[:half].reset_index(drop=True)
+    right = df.iloc[half:].reset_index(drop=True)
 
-    # Create plot
     fig, ax = plt.subplots(figsize=(10, 7))
     fig.patch.set_facecolor('black')
     ax.axis("off")
 
-    def render_column(col_data, x, align):
-        ax.text(x, 1.02, "PLAYER", fontsize=16, color="orange", ha=align, weight="bold")
-        ax.text(x + 0.12 if align == "left" else x - 0.12, 1.02, "%DRAFTED", fontsize=16, color="lime", ha=align, weight="bold")
-        for i, row in enumerate(col_data.itertuples()):
-            ax.text(x, 1 - i * 0.05, row.PLAYER, fontsize=14, color="white", ha=align,
-                    path_effects=[path_effects.withStroke(linewidth=3, foreground="black")])
-            ax.text(x + 0.12 if align == "left" else x - 0.12, 1 - i * 0.05, f"{row._2:.2f}%", fontsize=14, color="lime", ha=align,
-                    path_effects=[path_effects.withStroke(linewidth=3, foreground="black")])
+    # Load DraftKings logo
+    logo = mpimg.imread("draftkings_logo.png")
+    fig.figimage(logo, xo=fig.bbox.xmax / 2 - 100, yo=fig.bbox.ymax - 80, zorder=1)
 
-    render_column(left_col, 0.05, "left")
-    render_column(right_col, 0.95, "right")
+    # Set headers
+    ax.text(0.15, 0.88, "PLAYER", color="orange", fontsize=14, fontweight="bold", transform=fig.transFigure)
+    ax.text(0.33, 0.88, "%DRAFTED", color="lime", fontsize=14, fontweight="bold", transform=fig.transFigure)
+    ax.text(0.63, 0.88, "PLAYER", color="orange", fontsize=14, fontweight="bold", transform=fig.transFigure)
+    ax.text(0.81, 0.88, "%DRAFTED", color="lime", fontsize=14, fontweight="bold", transform=fig.transFigure)
+
+    # Add player data
+    spacing = 0.03
+    for i in range(len(left)):
+        y = 0.85 - i * spacing
+        ax.text(0.15, y, left.at[i, "PLAYER"], color="white", fontsize=12, transform=fig.transFigure)
+        ax.text(0.33, y, f'{left.at[i, "%DRAFTED"]:.2f}%', color="lime", fontsize=12, transform=fig.transFigure)
+
+    for i in range(len(right)):
+        y = 0.85 - i * spacing
+        ax.text(0.63, y, right.at[i, "PLAYER"], color="white", fontsize=12, transform=fig.transFigure)
+        ax.text(0.81, y, f'{right.at[i, "%DRAFTED"]:.2f}%', color="lime", fontsize=12, transform=fig.transFigure)
 
     st.pyplot(fig)
 
     # Download button
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    st.download_button("Download Image", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
+    st.download_button("Download PNG", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
