@@ -2,63 +2,51 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as path_effects
 import io
 
-def abbreviate_name(full_name):
-    names = full_name.split()
-    if len(names) > 1:
-        return f"{names[0][0]}. {' '.join(names[1:])}"
-    return full_name
+st.set_page_config(layout="centered")
 
-def fig_to_bytes(fig):
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    buf.seek(0)
-    return buf.getvalue()
-
-st.title("DraftKings Ownership Visualizer")
-
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
-
-if uploaded_file is not None:
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
-    # Extract Player and %Drafted from specific columns (H and J)
-    df = df.iloc[1:]  # Skip header row if needed
-    df = df.reset_index(drop=True)
+    # Extract relevant columns from the known structure (PLAYER in col H, %DRAFTED in col J)
+    player_col = df.columns[7]
+    drafted_col = df.columns[9]
+    player_data = df[[player_col, drafted_col]].dropna()
+    player_data.columns = ["PLAYER", "%DRAFTED"]
 
-    df["Player"] = df.iloc[:, 7]  # Column H = index 7
-    df["%Drafted"] = df.iloc[:, 9]  # Column J = index 9
+    # Clean and format data
+    player_data["%DRAFTED"] = player_data["%DRAFTED"].astype(str).str.rstrip("%").astype(float)
+    player_data = player_data.drop_duplicates(subset="PLAYER")
+    player_data = player_data.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
 
-    df = df.dropna(subset=["Player", "%Drafted"])
-    df["Player"] = df["Player"].apply(abbreviate_name)
-    df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%','').astype(float)
+    # Split into two columns
+    half = len(player_data) // 2 + len(player_data) % 2
+    left_col = player_data.iloc[:half]
+    right_col = player_data.iloc[half:]
 
-    # Sort and split
-    df_sorted = df.sort_values(by="%Drafted", ascending=False)
-    top_15 = df_sorted.head(15)
-    bottom_15 = df_sorted.tail(15)
-
-    fig, ax = plt.subplots(figsize=(12, 8))
-    ax.set_facecolor('black')
+    # Create plot
+    fig, ax = plt.subplots(figsize=(10, 7))
     fig.patch.set_facecolor('black')
-
-    # Headers
-    ax.text(0.02, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.28, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.52, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.72, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
-
-    # Rows
-    for i in range(15):
-        ax.text(0.02, 1 - (i + 1) * 0.06, top_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
-        ax.text(0.28, 1 - (i + 1) * 0.06, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
-
-        ax.text(0.52, 1 - (i + 1) * 0.06, bottom_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
-        ax.text(0.72, 1 - (i + 1) * 0.06, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
-
     ax.axis("off")
+
+    def render_column(col_data, x, align):
+        ax.text(x, 1.02, "PLAYER", fontsize=16, color="orange", ha=align, weight="bold")
+        ax.text(x + 0.12 if align == "left" else x - 0.12, 1.02, "%DRAFTED", fontsize=16, color="lime", ha=align, weight="bold")
+        for i, row in enumerate(col_data.itertuples()):
+            ax.text(x, 1 - i * 0.05, row.PLAYER, fontsize=14, color="white", ha=align,
+                    path_effects=[path_effects.withStroke(linewidth=3, foreground="black")])
+            ax.text(x + 0.12 if align == "left" else x - 0.12, 1 - i * 0.05, f"{row._2:.2f}%", fontsize=14, color="lime", ha=align,
+                    path_effects=[path_effects.withStroke(linewidth=3, foreground="black")])
+
+    render_column(left_col, 0.05, "left")
+    render_column(right_col, 0.95, "right")
+
     st.pyplot(fig)
 
-    # Download PNG button
-    st.download_button("Download Image", data=fig_to_bytes(fig), file_name="draftkings_ownership.png", mime="image/png")
+    # Download button
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+    st.download_button("Download Image", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
