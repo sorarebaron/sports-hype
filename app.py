@@ -4,75 +4,63 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
-import os
 
-st.set_page_config(layout="wide", page_title="DraftKings MMA Ownership")
+def abbreviate_name(full_name):
+    names = full_name.split()
+    if len(names) > 1:
+        return f"{names[0][0]}. {' '.join(names[1:])}"
+    return full_name
 
-st.title("DraftKings MMA Ownership")
+st.title("DraftKings Ownership Visualizer")
 
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
 
-if uploaded_file:
+if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # Use fixed column positions H (7) and J (9)
-    player_col = df.columns[7]
-    drafted_col = df.columns[9]
-    df = df[[player_col, drafted_col]]
-    df.columns = ["PLAYER", "%DRAFTED"]
+    # Extract the relevant columns by header names in known positions
+    try:
+        df = df[["Player", "%Drafted"]]
+    except KeyError:
+        # Try to get them by column letters if needed
+        df = df.iloc[1:, [7, 9]]  # H=7, J=9
+        df.columns = ["Player", "%Drafted"]
 
-    # Remove any rows with missing or duplicate data
-    df.dropna(inplace=True)
-    df.drop_duplicates(inplace=True)
+    df = df.dropna(subset=["Player", "%Drafted"])
+    df["Player"] = df["Player"].apply(abbreviate_name)
+    df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%','').astype(float)
 
-    # Convert to numeric % for sorting
-    df["%DRAFTED"] = df["%DRAFTED"].str.rstrip('%').astype(float)
+    df = df.groupby("Player", as_index=False)["%Drafted"].mean()
+    df_sorted = df.sort_values(by="%Drafted", ascending=False)
+    top_15 = df_sorted.head(15)
+    bottom_15 = df_sorted.tail(15)
 
-    # Sort and reset index
-    df.sort_values("%DRAFTED", ascending=False, inplace=True)
-    df.reset_index(drop=True, inplace=True)
-
-    # Pad to 20 rows if fewer
-    while len(df) < 20:
-        df = pd.concat([df, pd.DataFrame([{"PLAYER": "", "%DRAFTED": 0.0}])], ignore_index=True)
-
-    # Split into two columns
-    half = len(df) // 2
-    left_col = df.iloc[:half]
-    right_col = df.iloc[half:]
-
-    # Start figure
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots(figsize=(12, 10))
+    ax.set_facecolor('black')
     fig.patch.set_facecolor('black')
+
+    # Add DraftKings logo
+    try:
+        logo = Image.open("draftkings_logo.png")
+        fig.figimage(logo, xo=fig.bbox.xmax//2 - 150, yo=fig.bbox.ymax - 100, zorder=10)
+    except FileNotFoundError:
+        pass
+
+    ax.text(0.02, 1.02, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.28, 1.02, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.72, 1.02, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+
+    for i in range(15):
+        ax.text(0.02, 0.95 - i * 0.055, top_15.iloc[i]["Player"], fontsize=13, color='white', transform=ax.transAxes)
+        ax.text(0.28, 0.95 - i * 0.055, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=13, color='lime', transform=ax.transAxes)
+
+        ax.text(0.52, 0.95 - i * 0.055, bottom_15.iloc[i]["Player"], fontsize=13, color='white', transform=ax.transAxes)
+        ax.text(0.72, 0.95 - i * 0.055, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=13, color='lime', transform=ax.transAxes)
+
     ax.axis("off")
-
-    # Header
-    ax.text(0.1, 1.02, "PLAYER", color='orange', weight='bold', fontsize=14)
-    ax.text(0.35, 1.02, "%DRAFTED", color='lime', weight='bold', fontsize=14)
-    ax.text(0.6, 1.02, "%DRAFTED", color='lime', weight='bold', fontsize=14)
-    ax.text(0.85, 1.02, "PLAYER", color='orange', weight='bold', fontsize=14)
-
-    # Left column
-    for i, (p, d) in enumerate(zip(left_col["PLAYER"], left_col["%DRAFTED"])):
-        y = 0.95 - i * 0.045
-        ax.text(0.1, y, str(p), color='white', fontsize=12)
-        ax.text(0.35, y, f"{d:.2f}%", color='lime', fontsize=12)
-
-    # Right column
-    for i, (p, d) in enumerate(zip(right_col["PLAYER"].iloc[::-1], right_col["%DRAFTED"].iloc[::-1])):
-        y = 0.95 - i * 0.045
-        ax.text(0.6, y, f"{d:.2f}%", color='lime', fontsize=12)
-        ax.text(0.85, y, str(p), color='white', fontsize=12)
-
-    # Add logo
-    logo_path = os.path.join(os.path.dirname(__file__), "draftkings_logo.png")
-    if os.path.exists(logo_path):
-        logo = Image.open(logo_path)
-        fig.figimage(logo, xo=70, yo=fig.bbox.ymax - 100, alpha=1, zorder=10)
-
     st.pyplot(fig)
 
     # Download button
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    st.download_button("Download Image", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
+    st.download_button("Download PNG", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
