@@ -2,54 +2,54 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import io
 
-st.set_page_config(layout="wide", page_title="DraftKings Ownership")
+# App title
+st.title("DraftKings Ownership Visualizer")
 
-st.title("DraftKings Ownership Visualization")
-
-uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+# File uploader
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    # Read specific columns by Excel-style letters
+    df_raw = pd.read_csv(uploaded_file, usecols=["H", "J"], skiprows=[0])
+    df_raw.columns = ["Player", "%Drafted"]  # Rename columns for consistency
 
-    df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
-    df.sort_values("%DRAFTED", ascending=False, inplace=True)
+    # Clean data
+    df = df_raw.dropna()
+    df = df.drop_duplicates()
+    df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%', '').astype(float)
 
-    left_col = df.iloc[:13].copy()
-    right_col = df.iloc[13:].copy()
+    # Sort and select top/bottom
+    df_sorted = df.sort_values(by="%Drafted", ascending=False)
+    top_15 = df_sorted.head(15)
+    bottom_15 = df_sorted.tail(15)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    fig.patch.set_facecolor("black")
-    ax.set_facecolor("black")
-    ax.axis("off")
-
-    x0, x1, x2 = 0.01, 0.4, 0.65
-    y = 0.95
-    line_height = 0.055
+    # Plotting
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.set_facecolor('black')
+    fig.patch.set_facecolor('black')
 
     # Headers
-    ax.text(x0, y, "PLAYER", fontsize=14, fontweight="bold", color="orange")
-    ax.text(x1, y, "%DRAFTED", fontsize=14, fontweight="bold", color="lime")
-    ax.text(x2, y, "%DRAFTED", fontsize=14, fontweight="bold", color="lime")
-    ax.text(x2 + 0.17, y, "PLAYER", fontsize=14, fontweight="bold", color="orange")
+    ax.text(0.02, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.28, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.52, 1.05, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
+    ax.text(0.78, 1.05, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
 
-    y -= line_height
+    # Rows
+    for i in range(15):
+        y = 1 - (i + 1) * 0.06
+        ax.text(0.02, y, top_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
+        ax.text(0.28, y, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
 
-    for i in range(len(left_col)):
-        player_l = left_col.iloc[i]
-        ax.text(x0, y, player_l["PLAYER"], fontsize=12, color="white")
-        ax.text(x1, y, f"{player_l['%DRAFTED']:.2f}%", fontsize=12, color="lime")
+        ax.text(0.52, y, bottom_15.iloc[i]["Player"], fontsize=14, color='white', transform=ax.transAxes)
+        ax.text(0.78, y, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=14, color='lime', transform=ax.transAxes)
 
-        if i < len(right_col):
-            player_r = right_col.iloc[i]
-            ax.text(x2, y, f"{player_r['%DRAFTED']:.2f}%", fontsize=12, color="lime")
-            ax.text(x2 + 0.17, y, player_r["PLAYER"], fontsize=12, color="white")
-        y -= line_height
-
+    ax.axis("off")
     st.pyplot(fig)
 
-    # Add download button
-    import io
+    # PNG download button
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    st.download_button("Download Image", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
+    st.download_button("Download PNG", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
