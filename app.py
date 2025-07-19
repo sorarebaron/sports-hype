@@ -1,66 +1,64 @@
-
-import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from PIL import Image
-import io
+import matplotlib.patches as patches
 
-def abbreviate_name(full_name):
-    names = full_name.split()
-    if len(names) > 1:
-        return f"{names[0][0]}. {' '.join(names[1:])}"
-    return full_name
+# Read the CSV file
+file_path = "ownership_data.csv"
+df = pd.read_csv(file_path)
 
-st.title("DraftKings Ownership Visualizer")
+# Extract PLAYER and %DRAFTED columns using known column names
+df = df[['PLAYER', '%DRAFTED']].drop_duplicates()
+df = df.sort_values(by='%DRAFTED', ascending=False).reset_index(drop=True)
 
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
+# Convert %DRAFTED to float for sorting
+df['%DRAFTED'] = df['%DRAFTED'].str.rstrip('%').astype(float)
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+# Sort again after conversion
+df = df.sort_values(by='%DRAFTED', ascending=False)
 
-    # Extract the relevant columns by header names in known positions
-    try:
-        df = df[["Player", "%Drafted"]]
-    except KeyError:
-        # Try to get them by column letters if needed
-        df = df.iloc[1:, [7, 9]]  # H=7, J=9
-        df.columns = ["Player", "%Drafted"]
+# Reset index for display
+df.reset_index(drop=True, inplace=True)
 
-    df = df.dropna(subset=["Player", "%Drafted"])
-    df["Player"] = df["Player"].apply(abbreviate_name)
-    df["%Drafted"] = df["%Drafted"].astype(str).str.replace('%','').astype(float)
+# Format %DRAFTED for display
+df['%DRAFTED'] = df['%DRAFTED'].map(lambda x: f"{x:.2f}%")
 
-    df = df.groupby("Player", as_index=False)["%Drafted"].mean()
-    df_sorted = df.sort_values(by="%Drafted", ascending=False)
-    top_15 = df_sorted.head(15)
-    bottom_15 = df_sorted.tail(15)
+# Split into two columns for display
+half = len(df) // 2 + len(df) % 2
+left_df = df.iloc[:half].reset_index(drop=True)
+right_df = df.iloc[half:].reset_index(drop=True)
 
-    fig, ax = plt.subplots(figsize=(12, 10))
-    ax.set_facecolor('black')
-    fig.patch.set_facecolor('black')
+# Start plotting
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.set_facecolor('black')
+fig.patch.set_facecolor('black')
+ax.axis('off')
 
-    # Add DraftKings logo
-    try:
-        logo = Image.open("draftkings_logo.png")
-        fig.figimage(logo, xo=fig.bbox.xmax//2 - 150, yo=fig.bbox.ymax - 100, zorder=10)
-    except FileNotFoundError:
-        pass
+# Define column headers
+headers = ['PLAYER', '%DRAFTED']
 
-    ax.text(0.02, 1.02, "PLAYER", fontsize=16, color='orange', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.28, 1.02, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
-    ax.text(0.72, 1.02, "%DRAFTED", fontsize=16, color='lime', fontweight='bold', transform=ax.transAxes)
+# Column positions
+x_positions = [0.05, 0.45, 0.65, 0.85]
 
-    for i in range(15):
-        ax.text(0.02, 0.95 - i * 0.055, top_15.iloc[i]["Player"], fontsize=13, color='white', transform=ax.transAxes)
-        ax.text(0.28, 0.95 - i * 0.055, f'{top_15.iloc[i]["%Drafted"]:.2f}%', fontsize=13, color='lime', transform=ax.transAxes)
+# Add headers
+for i, header in enumerate(headers):
+    ax.text(x_positions[i], 1.0, header, color='orange' if header == 'PLAYER' else 'lime', fontsize=14, fontweight='bold', ha='left' if i % 2 == 0 else 'right', transform=ax.transAxes)
 
-        ax.text(0.52, 0.95 - i * 0.055, bottom_15.iloc[i]["Player"], fontsize=13, color='white', transform=ax.transAxes)
-        ax.text(0.72, 0.95 - i * 0.055, f'{bottom_15.iloc[i]["%Drafted"]:.2f}%', fontsize=13, color='lime', transform=ax.transAxes)
+# Add text data for left and right columns
+for i in range(max(len(left_df), len(right_df))):
+    y = 0.95 - i * 0.05
+    if i < len(left_df):
+        ax.text(x_positions[0], y, left_df.loc[i, 'PLAYER'], color='white', fontsize=12, ha='left', transform=ax.transAxes)
+        ax.text(x_positions[1], y, left_df.loc[i, '%DRAFTED'], color='lime', fontsize=12, ha='right', transform=ax.transAxes)
+    if i < len(right_df):
+        ax.text(x_positions[2], y, right_df.loc[i, '%DRAFTED'], color='lime', fontsize=12, ha='right', transform=ax.transAxes)
+        ax.text(x_positions[3], y, right_df.loc[i, 'PLAYER'], color='white', fontsize=12, ha='right', transform=ax.transAxes)
 
-    ax.axis("off")
-    st.pyplot(fig)
+# Save the figure
+output_path = "/mnt/data/draftkings_ownership_clean.py"
+plt.savefig("/mnt/data/draftkings_ownership_clean.png", bbox_inches='tight', facecolor=fig.get_facecolor())
 
-    # Download button
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    st.download_button("Download PNG", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
+# Write the Python script file
+with open(output_path, "w") as file:
+    file.write(script_content)
+
+output_path
