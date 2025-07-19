@@ -1,64 +1,55 @@
+
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 
-# Read the CSV file
-file_path = "ownership_data.csv"
-df = pd.read_csv(file_path)
+st.set_page_config(layout="wide", page_title="DraftKings Ownership")
 
-# Extract PLAYER and %DRAFTED columns using known column names
-df = df[['PLAYER', '%DRAFTED']].drop_duplicates()
-df = df.sort_values(by='%DRAFTED', ascending=False).reset_index(drop=True)
+st.title("DraftKings Ownership Visualization")
 
-# Convert %DRAFTED to float for sorting
-df['%DRAFTED'] = df['%DRAFTED'].str.rstrip('%').astype(float)
+uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
 
-# Sort again after conversion
-df = df.sort_values(by='%DRAFTED', ascending=False)
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
 
-# Reset index for display
-df.reset_index(drop=True, inplace=True)
+    df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
+    df.sort_values("%DRAFTED", ascending=False, inplace=True)
 
-# Format %DRAFTED for display
-df['%DRAFTED'] = df['%DRAFTED'].map(lambda x: f"{x:.2f}%")
+    left_col = df.iloc[:13].copy()
+    right_col = df.iloc[13:].copy()
 
-# Split into two columns for display
-half = len(df) // 2 + len(df) % 2
-left_df = df.iloc[:half].reset_index(drop=True)
-right_df = df.iloc[half:].reset_index(drop=True)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    fig.patch.set_facecolor("black")
+    ax.set_facecolor("black")
+    ax.axis("off")
 
-# Start plotting
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.set_facecolor('black')
-fig.patch.set_facecolor('black')
-ax.axis('off')
+    x0, x1, x2 = 0.01, 0.4, 0.65
+    y = 0.95
+    line_height = 0.055
 
-# Define column headers
-headers = ['PLAYER', '%DRAFTED']
+    # Headers
+    ax.text(x0, y, "PLAYER", fontsize=14, fontweight="bold", color="orange")
+    ax.text(x1, y, "%DRAFTED", fontsize=14, fontweight="bold", color="lime")
+    ax.text(x2, y, "%DRAFTED", fontsize=14, fontweight="bold", color="lime")
+    ax.text(x2 + 0.17, y, "PLAYER", fontsize=14, fontweight="bold", color="orange")
 
-# Column positions
-x_positions = [0.05, 0.45, 0.65, 0.85]
+    y -= line_height
 
-# Add headers
-for i, header in enumerate(headers):
-    ax.text(x_positions[i], 1.0, header, color='orange' if header == 'PLAYER' else 'lime', fontsize=14, fontweight='bold', ha='left' if i % 2 == 0 else 'right', transform=ax.transAxes)
+    for i in range(len(left_col)):
+        player_l = left_col.iloc[i]
+        ax.text(x0, y, player_l["PLAYER"], fontsize=12, color="white")
+        ax.text(x1, y, f"{player_l['%DRAFTED']:.2f}%", fontsize=12, color="lime")
 
-# Add text data for left and right columns
-for i in range(max(len(left_df), len(right_df))):
-    y = 0.95 - i * 0.05
-    if i < len(left_df):
-        ax.text(x_positions[0], y, left_df.loc[i, 'PLAYER'], color='white', fontsize=12, ha='left', transform=ax.transAxes)
-        ax.text(x_positions[1], y, left_df.loc[i, '%DRAFTED'], color='lime', fontsize=12, ha='right', transform=ax.transAxes)
-    if i < len(right_df):
-        ax.text(x_positions[2], y, right_df.loc[i, '%DRAFTED'], color='lime', fontsize=12, ha='right', transform=ax.transAxes)
-        ax.text(x_positions[3], y, right_df.loc[i, 'PLAYER'], color='white', fontsize=12, ha='right', transform=ax.transAxes)
+        if i < len(right_col):
+            player_r = right_col.iloc[i]
+            ax.text(x2, y, f"{player_r['%DRAFTED']:.2f}%", fontsize=12, color="lime")
+            ax.text(x2 + 0.17, y, player_r["PLAYER"], fontsize=12, color="white")
+        y -= line_height
 
-# Save the figure
-output_path = "/mnt/data/draftkings_ownership_clean.py"
-plt.savefig("/mnt/data/draftkings_ownership_clean.png", bbox_inches='tight', facecolor=fig.get_facecolor())
+    st.pyplot(fig)
 
-# Write the Python script file
-with open(output_path, "w") as file:
-    file.write(script_content)
-
-output_path
+    # Add download button
+    import io
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+    st.download_button("Download Image", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
