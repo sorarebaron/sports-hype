@@ -1,53 +1,73 @@
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from PIL import Image
 
-st.set_page_config(layout="wide", page_title="DraftKings Ownership Report")
+# Constants
+BACKGROUND_COLOR = "#1a1a1a"
+TEXT_COLOR = "white"
+ORANGE = "#ff6600"
+GREEN = "#00ff88"
+MAX_FIGHTERS = 30
 
-st.title("📊 DraftKings Ownership Report")
+# App Title
+st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
+st.title("🥊 DraftKings MMA Ownership Report")
 
-uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+# File uploader
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+if uploaded_file:
+    try:
+        df = pd.read_csv(uploaded_file)
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
+        df = df.iloc[:, [7, 9]]
+        df.columns = ["PLAYER", "%DRAFTED"]
+        df.dropna(inplace=True)
+        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
+        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
+        df = df.head(MAX_FIGHTERS)
 
-    # Show columns for debugging
-    st.write("Columns found:", df.columns.tolist())
+        # Prepare for two-column layout
+        half = (len(df) + 1) // 2
+        left_col = df.iloc[:half].reset_index(drop=True)
+        right_col = df.iloc[half:].reset_index(drop=True)
 
-    # Auto-detect relevant columns
-    name_col = next((col for col in df.columns if "name" in col.lower()), None)
-    drafted_col = next((col for col in df.columns if "draft" in col.lower()), None)
+        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
+        ax.set_facecolor(BACKGROUND_COLOR)
+        ax.axis("off")
 
-    if not name_col or not drafted_col:
-        st.error("Could not find the expected 'Name' or '%Drafted' columns.")
-        st.stop()
+        # DraftKings logo
+        try:
+            logo = Image.open("dk_logo.png")
+            fig.figimage(logo, xo=320, yo=680, zorder=1, alpha=0.7)
+        except:
+            pass
 
-    df = df[[name_col, drafted_col]]
-    df.columns = ["Name", "%Drafted"]
+        # Headers
+        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
-    # Sort by drafted percentage
-    df["%Drafted"] = df["%Drafted"].str.replace('%', '').astype(float)
-    df = df.sort_values("%Drafted", ascending=False).reset_index(drop=True)
+        # Draw fighter names and ownership
+        for i in range(len(left_col)):
+            y = 0.9 - i * 0.035
+            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+        for i in range(len(right_col)):
+            y = 0.9 - i * 0.035
+            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
 
-    # Split into two columns
-    midpoint = len(df) // 2 + len(df) % 2
-    left_df = df.iloc[:midpoint].reset_index(drop=True)
-    right_df = df.iloc[midpoint:].reset_index(drop=True)
+        # Save to file
+        output_file = "draftkings_ownership_v2.png"
+        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
+        st.image(output_file)
+        with open(output_file, "rb") as f:
+            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    fig.patch.set_facecolor('#1e1e1e')
-    ax.axis('off')
-
-    def draw_column(x_offset, data):
-        ax.text(x_offset, 1.05, "PLAYER", color='orangered', fontsize=14, fontweight='bold', family='monospace')
-        ax.text(x_offset + 0.25, 1.05, "%DRAFTED", color='mediumspringgreen', fontsize=14, fontweight='bold', family='monospace')
-
-        for i, row in data.iterrows():
-            y = 1 - (i + 1) * 0.065
-            ax.text(x_offset, y, f"{row['Name']}", fontsize=12, color='white', family='monospace')
-            ax.text(x_offset + 0.25, y, f"{row['%Drafted']:.2f}%", fontsize=12, color='white', family='monospace', ha='right')
-
-    draw_column(0.05, left_df)
-    draw_column(0.55, right_df)
-
-    st.pyplot(fig)
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
