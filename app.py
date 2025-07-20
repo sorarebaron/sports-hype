@@ -1,73 +1,60 @@
 
 import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from PIL import Image
 
-# Constants
-BACKGROUND_COLOR = "#1a1a1a"
-TEXT_COLOR = "white"
-ORANGE = "#ff6600"
-GREEN = "#00ff88"
-MAX_FIGHTERS = 30
+# Set page config
+st.set_page_config(page_title="DraftKings Ownership", layout="centered")
 
-# App Title
-st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
-st.title("🥊 DraftKings MMA Ownership Report")
+# Load your data
+uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file)
+    # Filter out placeholders
+    df = df[~df['Name + ID'].str.contains("Fighter 29|Fighter 30")]
 
-        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
-        df = df.iloc[:, [7, 9]]
-        df.columns = ["PLAYER", "%DRAFTED"]
-        df.dropna(inplace=True)
-        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
-        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_FIGHTERS)
+    # Keep only relevant columns
+    df = df[["Name + ID", "%Drafted"]]
 
-        # Prepare for two-column layout
-        half = (len(df) + 1) // 2
-        left_col = df.iloc[:half].reset_index(drop=True)
-        right_col = df.iloc[half:].reset_index(drop=True)
+    # Convert to list of tuples
+    data = list(df.itertuples(index=False, name=None))
 
-        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
-        ax.set_facecolor(BACKGROUND_COLOR)
-        ax.axis("off")
+    # Split into two columns
+    midpoint = (len(data) + 1) // 2
+    col1_data = data[:midpoint]
+    col2_data = data[midpoint:]
 
-        # DraftKings logo
-        try:
-            logo = Image.open("dk_logo.png")
-            fig.figimage(logo, xo=320, yo=680, zorder=1, alpha=0.7)
-        except:
-            pass
+    # Create image
+    img_width, img_height = 960, 480
+    background_color = (15, 15, 15)
+    image = Image.new("RGB", (img_width, img_height), color=background_color)
+    draw = ImageDraw.Draw(image)
 
-        # Headers
-        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+    # Fonts
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"  # Use monospaced font
+    header_font = ImageFont.truetype(font_path, 36)
+    data_font = ImageFont.truetype(font_path, 28)
 
-        # Draw fighter names and ownership
-        for i in range(len(left_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-        for i in range(len(right_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+    # Colors
+    orange = (255, 100, 0)
+    green = (0, 255, 180)
+    white = (255, 255, 255)
 
-        # Save to file
-        output_file = "draftkings_ownership_v2.png"
-        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
-        st.image(output_file)
-        with open(output_file, "rb") as f:
-            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
+    # Header positions
+    draw.text((80, 30), "PLAYER", fill=orange, font=header_font)
+    draw.text((340, 30), "%DRAFTED", fill=green, font=header_font)
+    draw.text((560, 30), "PLAYER", fill=orange, font=header_font)
+    draw.text((820, 30), "%DRAFTED", fill=green, font=header_font)
 
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
+    # Draw each row
+    row_height = 40
+    for i, (name, percent) in enumerate(col1_data):
+        draw.text((80, 80 + i * row_height), name.ljust(20), fill=white, font=data_font)
+        draw.text((340, 80 + i * row_height), percent.rjust(6), fill=white, font=data_font)
+    for i, (name, percent) in enumerate(col2_data):
+        draw.text((560, 80 + i * row_height), name.ljust(20), fill=white, font=data_font)
+        draw.text((820, 80 + i * row_height), percent.rjust(6), fill=white, font=data_font)
+
+    # Display image
+    st.image(image, caption="DraftKings Ownership", use_column_width=False)
