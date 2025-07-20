@@ -2,48 +2,72 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import io
+import matplotlib.patches as patches
+from PIL import Image
 
-st.set_page_config(layout="wide")
+# Constants
+BACKGROUND_COLOR = "#1a1a1a"
+TEXT_COLOR = "white"
+ORANGE = "#ff6600"
+GREEN = "#00ff88"
+MAX_FIGHTERS = 30
 
-st.title("DraftKings MMA Ownership Report")
+# App Title
+st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
+st.title("🥊 DraftKings MMA Ownership Report")
 
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
-if uploaded_file is not None:
-    df_raw = pd.read_csv(uploaded_file)
+# File uploader
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+if uploaded_file:
+    try:
+        df = pd.read_csv(uploaded_file)
 
-    # Extract PLAYER and %DRAFTED from columns H and J
-    df = df_raw.iloc[1:, [7, 9]].copy()
-    df.columns = ["PLAYER", "%DRAFTED"]
-    df.dropna(inplace=True)
-    df["%DRAFTED"] = df["%DRAFTED"].astype(str).str.rstrip("%").astype(float)
-    df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
+        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
+        df = df.iloc[:, [7, 9]]
+        df.columns = ["PLAYER", "%DRAFTED"]
+        df.dropna(inplace=True)
+        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
+        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
+        df = df.head(MAX_FIGHTERS)
 
-    # Split into two columns
-    mid = len(df) // 2 + len(df) % 2
-    df1 = df.iloc[:mid].reset_index(drop=True)
-    df2 = df.iloc[mid:].reset_index(drop=True)
+        # Prepare for two-column layout
+        half = (len(df) + 1) // 2
+        left_col = df.iloc[:half].reset_index(drop=True)
+        right_col = df.iloc[half:].reset_index(drop=True)
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(10, 12))
-    ax.axis("off")
-    ax.add_patch(Rectangle((0, 1.02), 1, 0.08, color="orange", transform=ax.transAxes))
+        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
+        ax.set_facecolor(BACKGROUND_COLOR)
+        ax.axis("off")
 
-    ax.text(0.22, 1.07, "PLAYER", fontsize=12, fontweight="bold", transform=ax.transAxes)
-    ax.text(0.72, 1.07, "PLAYER", fontsize=12, fontweight="bold", transform=ax.transAxes)
+        # DraftKings logo
+        try:
+            logo = Image.open("dk_logo.png")
+            fig.figimage(logo, xo=320, yo=680, zorder=1, alpha=0.7)
+        except:
+            pass
 
-    for i in range(len(df1)):
-        ax.text(0.05, 1 - (i + 1) * 0.04, f"{df1['PLAYER'][i]}", fontsize=10, transform=ax.transAxes)
-        ax.text(0.45, 1 - (i + 1) * 0.04, f"{df1['%DRAFTED'][i]:.1f}%", fontsize=10, transform=ax.transAxes)
+        # Headers
+        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
-    for i in range(len(df2)):
-        ax.text(0.55, 1 - (i + 1) * 0.04, f"{df2['PLAYER'][i]}", fontsize=10, transform=ax.transAxes)
-        ax.text(0.95, 1 - (i + 1) * 0.04, f"{df2['%DRAFTED'][i]:.1f}%", fontsize=10, transform=ax.transAxes)
+        # Draw fighter names and ownership
+        for i in range(len(left_col)):
+            y = 0.9 - i * 0.035
+            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+        for i in range(len(right_col)):
+            y = 0.9 - i * 0.035
+            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
 
-    st.pyplot(fig)
+        # Save to file
+        output_file = "draftkings_ownership_v2.png"
+        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
+        st.image(output_file)
+        with open(output_file, "rb") as f:
+            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
 
-    # Download button
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    st.download_button("Download PNG", data=buf.getvalue(), file_name="draftkings_ownership.png", mime="image/png")
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
