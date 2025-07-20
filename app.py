@@ -1,73 +1,48 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from PIL import Image
 
-# Constants
-BACKGROUND_COLOR = "#1a1a1a"
-TEXT_COLOR = "white"
-ORANGE = "#ff6600"
-GREEN = "#00ff88"
-MAX_FIGHTERS = 30
+st.set_page_config(page_title="DraftKings MMA Ownership Report", page_icon="🥊", layout="centered")
 
-# App Title
-st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
-st.title("🥊 DraftKings MMA Ownership Report")
+st.markdown("<h1 style='text-align: center;'>🥊 DraftKings MMA Ownership Report</h1>", unsafe_allow_html=True)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file)
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
 
-        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
-        df = df.iloc[:, [7, 9]]
-        df.columns = ["PLAYER", "%DRAFTED"]
-        df.dropna(inplace=True)
-        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
-        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_FIGHTERS)
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-        # Prepare for two-column layout
-        half = (len(df) + 1) // 2
-        left_col = df.iloc[:half].reset_index(drop=True)
-        right_col = df.iloc[half:].reset_index(drop=True)
+    # Clean and format
+    df = df[["Name + ID", "%Drafted"]]
+    df = df.dropna()
+    df = df[~df['Name + ID'].str.contains("Fighter 29|Fighter 30")]
+    df["%Drafted"] = df["%Drafted"].astype(float).round(2).astype(str) + "%"
 
-        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
-        ax.set_facecolor(BACKGROUND_COLOR)
-        ax.axis("off")
+    # Pad player names for alignment
+    df["Formatted"] = df["Name + ID"].str.pad(width=22) + df["%Drafted"]
 
-        # DraftKings logo
-        try:
-            logo = Image.open("dk_logo.png")
-            fig.figimage(logo, xo=320, yo=680, zorder=1, alpha=0.7)
-        except:
-            pass
+    # Split evenly
+    split_idx = len(df) // 2
+    left = df.iloc[:split_idx]["Formatted"].tolist()
+    right = df.iloc[split_idx:]["Formatted"].tolist()
 
-        # Headers
-        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+    # Pad columns to equal length
+    if len(left) > len(right):
+        right += [""] * (len(left) - len(right))
+    elif len(right) > len(left):
+        left += [""] * (len(right) - len(left))
 
-        # Draw fighter names and ownership
-        for i in range(len(left_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-        for i in range(len(right_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+    # Create formatted rows
+    combined_lines = [f"{l}    {r}" for l, r in zip(left, right)]
 
-        # Save to file
-        output_file = "draftkings_ownership_v2.png"
-        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
-        st.image(output_file)
-        with open(output_file, "rb") as f:
-            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
+    # Display with fixed-width font
+    st.markdown("<pre style='font-family: monospace; color: white;'>"
+                "<span style='color: orange;'>PLAYER               </span>"
+                "<span style='color: lime;'>%DRAFTED        </span>"
+                "<span style='color: orange;'>PLAYER               </span>"
+                "<span style='color: lime;'>%DRAFTED</span>\n" +
+                "\n".join(combined_lines) +
+                "</pre>", unsafe_allow_html=True)
 
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
+    # Download button
+    csv = df[["Name + ID", "%Drafted"]].to_csv(index=False).encode("utf-8")
+    st.download_button("Download Ownership Report", data=csv, file_name="ownership_report.csv", mime="text/csv")
