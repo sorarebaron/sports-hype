@@ -1,73 +1,56 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from PIL import Image
 
-# Constants
-BACKGROUND_COLOR = "#1a1a1a"
-TEXT_COLOR = "white"
-ORANGE = "#ff6600"
-GREEN = "#00ff88"
-MAX_FIGHTERS = 30
+# Page config
+st.set_page_config(layout="wide", page_title="DraftKings Ownership Report")
 
-# App Title
-st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
-st.title("🥊 DraftKings MMA Ownership Report")
+st.markdown(
+    "<h1 style='text-align: center; color: #FF6600;'>DraftKings Ownership</h1>",
+    unsafe_allow_html=True,
+)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file)
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type="csv")
 
-        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
-        df = df.iloc[:, [7, 9]]
-        df.columns = ["PLAYER", "%DRAFTED"]
-        df.dropna(inplace=True)
-        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
-        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_FIGHTERS)
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-        # Prepare for two-column layout
-        half = (len(df) + 1) // 2
-        left_col = df.iloc[:half].reset_index(drop=True)
-        right_col = df.iloc[half:].reset_index(drop=True)
+    # Ensure proper column names (case-insensitive)
+    df.columns = [col.strip() for col in df.columns]
+    if "Name + ID" in df.columns:
+        df = df.rename(columns={"Name + ID": "Player"})
 
-        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
-        ax.set_facecolor(BACKGROUND_COLOR)
-        ax.axis("off")
+    if "Player" not in df.columns or "%Drafted" not in df.columns:
+        st.error("CSV must contain 'Player' and '%Drafted' columns.")
+    else:
+        df = df[["Player", "%Drafted"]]
+        df = df.dropna()
+        df["%Drafted"] = df["%Drafted"].apply(lambda x: f"{float(x):.2f}%")
 
-        # DraftKings logo
-        try:
-            logo = Image.open("dk_logo.png")
-            fig.figimage(logo, xo=320, yo=680, zorder=1, alpha=0.7)
-        except:
-            pass
+        # Sort by %Drafted descending
+        df = df.sort_values(by="%Drafted", ascending=False).reset_index(drop=True)
 
-        # Headers
-        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        # Split into two columns
+        mid = len(df) // 2 + len(df) % 2
+        left_df = df.iloc[:mid]
+        right_df = df.iloc[mid:]
 
-        # Draw fighter names and ownership
-        for i in range(len(left_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-        for i in range(len(right_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+        col1, col2 = st.columns(2)
 
-        # Save to file
-        output_file = "draftkings_ownership_v2.png"
-        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
-        st.image(output_file)
-        with open(output_file, "rb") as f:
-            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
+        def render_column(column, data, side_label):
+            with column:
+                st.markdown(
+                    f"<div style='font-weight:bold; font-size:22px; color:#FF6600;'>PLAYER</div>"
+                    f"<div style='font-weight:bold; font-size:22px; color:#00FFCC;'>%DRAFTED</div>",
+                    unsafe_allow_html=True,
+                )
+                for i, row in data.iterrows():
+                    st.markdown(
+                        f"<div style='display:flex; justify-content:space-between; font-size:20px;'>"
+                        f"<span style='color:white;'>{row['Player']}</span>"
+                        f"<span style='color:white;'>{row['%Drafted']}</span></div>",
+                        unsafe_allow_html=True,
+                    )
 
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
+        render_column(col1, left_df, "Left")
+        render_column(col2, right_df, "Right")
