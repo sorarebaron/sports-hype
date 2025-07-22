@@ -1,94 +1,79 @@
+
 import streamlit as st
 import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
-import math
-import os
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from PIL import Image
+import textwrap
 
 # Constants
-TITLE = "DraftKings UFC Ownership Report"
-LOGO_PATH = "draftkings_logo.png"  # Ensure this logo exists in the same directory
-FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Use a bold font
-FONT_SIZE = 28
-LINE_HEIGHT = 40
-PADDING = 50
-COLUMN_GAP = 100
-BG_COLOR = "white"
-TEXT_COLOR = "black"
-IMAGE_WIDTH = 1600
+BACKGROUND_COLOR = "#1a1a1a"
+TEXT_COLOR = "white"
+ORANGE = "#ff6600"
+GREEN = "#00ff88"
+MAX_FIGHTERS = 30
 
-# Upload CSV
-st.title(TITLE)
-uploaded_file = st.file_uploader("Upload the DraftKings CSV file", type=["csv"])
+# Helper to safely truncate long names
+def safe_name(name, limit=18):
+    return textwrap.shorten(name, width=limit, placeholder="…")
 
+# App Title
+st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
+st.title("🥊 DraftKings MMA Ownership Report")
+
+# File uploader
+uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    try:
+        df = pd.read_csv(uploaded_file)
 
-    # Extract player names and %Drafted columns
-    if "Player" in df.columns and "%Drafted" in df.columns:
-        names = df["Player"].astype(str).tolist()
-        drafted = df["%Drafted"].astype(str).tolist()
-    else:
-        st.error("CSV must contain 'Player' and '%Drafted' columns.")
-        st.stop()
+        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
+        df = df.iloc[:, [7, 9]]
+        df.columns = ["PLAYER", "%DRAFTED"]
+        df.dropna(inplace=True)
+        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
+        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
+        df = df.head(MAX_FIGHTERS)
 
-    # Format %Drafted as float with 2 decimals and a % sign
-    def format_pct(x):
+        # Prepare for two-column layout
+        half = (len(df) + 1) // 2
+        left_col = df.iloc[:half].reset_index(drop=True)
+        right_col = df.iloc[half:].reset_index(drop=True)
+
+        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
+        ax.set_facecolor(BACKGROUND_COLOR)
+        ax.axis("off")
+
+        # DraftKings logo
         try:
-            return f"{float(x):.2f}%"
-        except:
-            return x
-
-    drafted = [format_pct(x) for x in drafted]
-
-    players = list(zip(names, drafted))
-
-    # Split into two columns (left gets extra if odd)
-    midpoint = math.ceil(len(players) / 2)
-    left_col = players[:midpoint]
-    right_col = players[midpoint:]
-
-    # Image height calculation
-    row_count = max(len(left_col), len(right_col))
-    image_height = PADDING * 2 + LINE_HEIGHT * row_count + 200  # Extra for title/logo
-
-    # Create image
-    img = Image.new("RGB", (IMAGE_WIDTH, image_height), color=BG_COLOR)
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
-
-    # Optional logo
-    logo_y_offset = 30
-    if os.path.exists(LOGO_PATH):
-        try:
-            logo = Image.open(LOGO_PATH).convert("RGBA")
-            logo_width = 300
-            logo_ratio = logo_width / logo.width
-            logo = logo.resize((logo_width, int(logo.height * logo_ratio)))
-            img.paste(logo, ((IMAGE_WIDTH - logo.width) // 2, logo_y_offset), logo)
-            content_start_y = logo_y_offset + logo.height + 40
+            logo = Image.open("dk_logo.png")
+            logo.thumbnail((120, 120))  # Resize safely
+            fig.figimage(logo, xo=10, yo=730, alpha=0.7, zorder=1)
         except Exception as e:
-            content_start_y = PADDING
-    else:
-        content_start_y = PADDING
+            st.warning(f"Logo load failed: {e}")
 
-    # Column coordinates
-    left_x = PADDING
-    right_x = IMAGE_WIDTH // 2 + COLUMN_GAP // 2
+        # Headers
+        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
-    # Draw text
-    for i in range(row_count):
-        if i < len(left_col):
-            text = f"{left_col[i][0]} - {left_col[i][1]}"
-            draw.text((left_x, content_start_y + i * LINE_HEIGHT), text, fill=TEXT_COLOR, font=font)
-        if i < len(right_col):
-            text = f"{right_col[i][0]} - {right_col[i][1]}"
-            draw.text((right_x, content_start_y + i * LINE_HEIGHT), text, fill=TEXT_COLOR, font=font)
+        # Draw fighter names and ownership
+        for i in range(len(left_col)):
+            y = 0.9 - i * 0.035
+            ax.text(0.15, y, safe_name(left_col.at[i, "PLAYER"]), color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+        for i in range(len(right_col)):
+            y = 0.9 - i * 0.035
+            ax.text(0.60, y, safe_name(right_col.at[i, "PLAYER"]), color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
 
-    # Save and display
-    output_path = "ownership_report.png"
-    img.save(output_path)
-    st.image(img, caption="DraftKings UFC Ownership Report")
-    with open(output_path, "rb") as file:
-        st.download_button("Download Image", file, file_name="ownership_report.png", mime="image/png")
-else:
-    st.info("Please upload a CSV file to begin.")
+        # Save to file
+        output_file = "draftkings_ownership_v3.png"
+        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
+        st.image(output_file)
+        with open(output_file, "rb") as f:
+            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
+
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
