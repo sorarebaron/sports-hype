@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from PIL import Image
 
 # Constants
 BACKGROUND_COLOR = "#1a1a1a"
@@ -26,18 +27,18 @@ if uploaded_file:
         df.columns = ["PLAYER", "%DRAFTED"]
         df.dropna(inplace=True)
         df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
+        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
+        df = df.head(MAX_FIGHTERS)
 
-        # Abbreviate names longer than 17 characters
+        # Abbreviate long names
         def abbreviate_name(name):
-            if len(name) > MAX_NAME_LENGTH and " " in name:
-                first, last = name.split(" ", 1)
-                return f"{first[0]}. {last}"
+            if len(name) > MAX_NAME_LENGTH:
+                parts = name.split()
+                if len(parts) >= 2:
+                    return f"{parts[0][0]}. {' '.join(parts[1:])}"
             return name
 
         df["PLAYER"] = df["PLAYER"].apply(abbreviate_name)
-
-        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_FIGHTERS)
 
         # Prepare for two-column layout
         half = (len(df) + 1) // 2
@@ -49,23 +50,23 @@ if uploaded_file:
         ax.axis("off")
 
         # Headers
-        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        ax.text(0.10, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.42, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        ax.text(0.58, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.90, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
         # Draw fighter names and ownership
         for i in range(len(left_col)):
             y = 0.9 - i * 0.035
-            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+            ax.text(0.10, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.42, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
         for i in range(len(right_col)):
             y = 0.9 - i * 0.035
-            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+            ax.text(0.58, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.90, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
 
         # Save to file
-        output_file = "draftkings_ownership_abbreviated.png"
+        output_file = "draftkings_ownership_final.png"
         plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
         st.image(output_file)
         with open(output_file, "rb") as f:
