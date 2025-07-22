@@ -14,11 +14,20 @@ MAX_NAME_LENGTH = 16
 
 # App Title
 st.set_page_config(page_title="DraftKings Ownership", layout="centered")
+
+# Load and encode image
+with open("DK-crown-logo.png", "rb") as image_file:
+    encoded = base64.b64encode(image_file.read()).decode()
+
+# Render image + styled title
 st.markdown(f"""
-<h1 style='text-align: center;'>
-  👑 <span style='color:{ORANGE};'>DraftKings</span> 
-  <span style='color:{GREEN};'>Ownership</span> 
-</h1>
+<div style='text-align: center;'>
+    <img src='data:image/png;base64,{encoded}' alt='DK Logo' width='40'/>
+    <span style='font-size: 2.5em; font-weight: bold;'>
+        <span style='color:{ORANGE};'>DraftKings</span> 
+        <span style='color:{GREEN};'>Ownership</span>
+    </span>
+</div>
 """, unsafe_allow_html=True)
 
 
