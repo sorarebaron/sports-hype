@@ -7,8 +7,8 @@ from PIL import Image
 # Constants
 BACKGROUND_COLOR = "#1a1a1a"
 TEXT_COLOR = "white"
-ORANGE = "#ff6600"
-GREEN = "#00ff88"
+ORANGE = "#F6770E"
+GREEN = "#61B50E"
 MAX_FIGHTERS = 50
 MAX_NAME_LENGTH = 16
 
