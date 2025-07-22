@@ -13,12 +13,11 @@ MAX_FIGHTERS = 50
 MAX_NAME_LENGTH = 16
 
 # App Title
-st.set_page_config(page_title="DraftKings Ownership Report", layout="centered")
+st.set_page_config(page_title="DraftKings Ownership", layout="centered")
 st.markdown(f"""
 <h1 style='text-align: center;'>
   👑 <span style='color:{ORANGE};'>DraftKings</span> 
   <span style='color:{GREEN};'>Ownership</span> 
-  <span style='color:{TEXT_COLOR};'>Report</span>
 </h1>
 """, unsafe_allow_html=True)
 
