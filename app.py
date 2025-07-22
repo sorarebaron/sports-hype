@@ -9,12 +9,12 @@ BACKGROUND_COLOR = "#1a1a1a"
 TEXT_COLOR = "white"
 ORANGE = "#ff6600"
 GREEN = "#00ff88"
-MAX_FIGHTERS = 30
-MAX_NAME_LENGTH = 17
+MAX_FIGHTERS = 50
+MAX_NAME_LENGTH = 16
 
 # App Title
-st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
-st.title("🥊 DraftKings MMA Ownership Report")
+st.set_page_config(page_title="DraftKings Ownership Report", layout="centered")
+st.title("👑 DraftKings Ownership Report")
 
 # File uploader
 uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
