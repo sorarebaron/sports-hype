@@ -12,8 +12,38 @@ GREEN = "#61B50E"
 MAX_PLAYERS = 100
 MAX_NAME_LENGTH = 16
 
+from PIL import Image, ImageFilter, ImageEnhance
+
+def add_glow_to_image(input_path, output_path, glow_color=(255, 102, 0), radius=25, alpha=0.6):
+    base = Image.open(input_path).convert("RGBA")
+
+    # Create a glow layer from the alpha channel
+    glow = base.copy().convert("L")  # grayscale alpha
+    glow = ImageEnhance.Brightness(glow).enhance(2.0)
+
+    # Create a color version of the glow
+    colored_glow = Image.new("RGBA", base.size, glow_color + (0,))
+    colored_glow.putalpha(glow)
+
+    # Blur to make it soft
+    blurred = colored_glow.filter(ImageFilter.GaussianBlur(radius=radius))
+
+    # Composite glow and original
+    out = Image.alpha_composite(blurred, base)
+    out = Image.blend(base, out, alpha)
+
+    out.save(output_path)
+
+
 # App Title
-st.image("DK-Ownership-Header.png", use_container_width=True)
+# Add ripple glow effect to header
+header_input = "DK-Ownership-Header.png"
+header_output = "DK-Ownership-Header-Glow.png"
+add_glow_to_image(header_input, header_output, glow_color=(255, 102, 0), radius=20, alpha=0.7)
+
+# Show the glowing version in the app
+st.image(header_output, use_container_width=True)
+
 
 
 # File uploader
