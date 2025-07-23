@@ -78,8 +78,10 @@ if uploaded_file:
         with open(output_file, "rb") as f:
             st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
 
-st.markdown("### 💸 Tips Welcome")
-st.image("tips.png", use_column_width=True)
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
+
+st.markdown("### 💸 Tips Welcome")
+st.image("tips.png", use_column_width=True)
+
