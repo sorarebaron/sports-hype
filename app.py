@@ -9,7 +9,7 @@ BACKGROUND_COLOR = "#1a1a1a"
 TEXT_COLOR = "white"
 ORANGE = "#F6770E"
 GREEN = "#61B50E"
-MAX_FIGHTERS = 100
+MAX_PLAYERS = 100
 MAX_NAME_LENGTH = 16
 
 # App Title
@@ -28,7 +28,7 @@ if uploaded_file:
         df.dropna(inplace=True)
         df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
         df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_FIGHTERS)
+        df = df.head(MAX_PLAYERS)
 
         # Abbreviate long names
         def abbreviate_name(name):
