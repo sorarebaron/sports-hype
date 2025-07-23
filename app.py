@@ -83,5 +83,5 @@ if uploaded_file:
         st.error(f"Error processing file: {e}")
 
 st.markdown("### 💸 Tips Welcome")
-st.image("tips.png", use_column_width=True)
+st.image("tips.png", use_container_width=True)
 
