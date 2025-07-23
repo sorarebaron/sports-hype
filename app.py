@@ -13,7 +13,7 @@ MAX_FIGHTERS = 99
 MAX_NAME_LENGTH = 16
 
 # App Title
-st.image("DraftKings-Ownership-Header.png", use_container_width=True)
+st.image("DK-Ownership-Header.png", use_container_width=True)
 
 
 # File uploader
