@@ -55,7 +55,7 @@ if uploaded_file:
         ax.text(0.58, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
         ax.text(0.90, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
-        # Draw fighter names and ownership
+        # Draw player names and ownership
         for i in range(len(left_col)):
             y = 0.9 - i * 0.035
             ax.text(0.10, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
@@ -78,4 +78,7 @@ if uploaded_file:
 
 st.markdown("### no shoes / no shirts / no tips 🎲🎲")
 st.image("tips.png", use_container_width=True)
+
+# Dev Logo
+st.image("testudo1111-black.png", use_container_width=True)
 
