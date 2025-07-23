@@ -79,6 +79,4 @@ if uploaded_file:
 st.markdown("### no shoes / no shirts / no tips 🎲🎲")
 st.image("tips.png", use_container_width=True)
 
-# Dev Logo
-st.image("testudo1111-black.png", use_container_width=True)
 
