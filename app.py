@@ -85,5 +85,4 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown("<br>", unsafe_allow_html=True)
 st.image("tips.png", use_container_width=True)
