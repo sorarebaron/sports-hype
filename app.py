@@ -12,9 +12,32 @@ GREEN = "#61B50E"
 MAX_PLAYERS = 100
 MAX_NAME_LENGTH = 16
 
+# Inject custom CSS for glowing border
+st.markdown(
+    """
+    <style>
+    .glow-box {
+        border: 3px solid #FFA500;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow:
+            0 0 10px #FFA500,
+            0 0 20px #FFA500,
+            0 0 30px #39FF14,
+            0 0 40px #39FF14;
+        background-color: #121212;
+        margin-top: 20px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # App Title
 st.image("DK-Ownership-Header.png", use_container_width=True)
 
+# Start glowing box
+st.markdown('<div class="glow-box">', unsafe_allow_html=True)
 
 # File uploader
 uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
@@ -72,11 +95,11 @@ if uploaded_file:
         with open(output_file, "rb") as f:
             st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
 
-
     except Exception as e:
         st.error(f"Error processing file: {e}")
 
+# End glowing box
+st.markdown('</div>', unsafe_allow_html=True)
+
 st.markdown("### no shoes / no shirts / no tips 🎲🎲")
 st.image("tips.png", use_container_width=True)
-
-
