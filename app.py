@@ -44,7 +44,10 @@ if uploaded_file:
         left_col = df.iloc[:half].reset_index(drop=True)
         right_col = df.iloc[half:].reset_index(drop=True)
 
-        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
+        # Dynamically set figure height based on number of rows
+row_count = max(len(left_col), len(right_col))
+height = 1.5 + row_count * 0.25  # adjust scalar as needed
+fig, ax = plt.subplots(figsize=(10, height), facecolor=BACKGROUND_COLOR)
         ax.set_facecolor(BACKGROUND_COLOR)
         ax.axis("off")
 
@@ -56,11 +59,11 @@ if uploaded_file:
 
         # Draw player names and ownership
         for i in range(len(left_col)):
-            y = 0.9 - i * 0.035
+            y = 1 - i * 0.045
             ax.text(0.10, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
             ax.text(0.42, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
         for i in range(len(right_col)):
-            y = 0.9 - i * 0.035
+            y = 1 - i * 0.045
             ax.text(0.58, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
             ax.text(0.90, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
 
