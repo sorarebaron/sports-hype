@@ -76,12 +76,12 @@ if uploaded_file:
         st.error(f"Error processing file: {e}")
 
 st.markdown(
-    "<p style='font-size:24px; color: #F6770E;'>step 1: upload CSV<br><span style='color: #61B50E;'>step 2: download report</span></p>",
+    "<p style='font-size:28px; color: #F6770E;'>step 1: upload CSV<br><span style='color: #61B50E;'>step 2: download report</span></p>",
     unsafe_allow_html=True
 )
 
 st.markdown(
-    "<p style='font-size:14px; color:#aaa;'>no shoes / no shirts / no tips</p>",
+    "<p style='font-size:18px; color:#aaa;'>no shoes / no shirts / no tips</p>",
     unsafe_allow_html=True
 )
 
