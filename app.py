@@ -16,7 +16,7 @@ st.image("DK-Ownership-Header.png", use_container_width=True)
 
 
 # File uploader
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
+uploaded_file = st.file_uploader("", type=["csv"])
 if uploaded_file:
     try:
         df = pd.read_csv(uploaded_file)
