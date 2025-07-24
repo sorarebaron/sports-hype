@@ -82,6 +82,8 @@ st.markdown(
 
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 st.markdown(
     "<p style='font-size:18px; color:#aaa;'>no shoes / no shirts / no tips</p>",
