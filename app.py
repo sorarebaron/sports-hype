@@ -75,5 +75,8 @@ if uploaded_file:
     except Exception as e:
         st.error(f"Error processing file: {e}")
 
-st.markdown("### no shoes / no shirts / no tips 🎲🎲")
+st.markdown(
+    "<p style='font-size:14px; color: gray;'>no shoes / no shirts / no dice</p>",
+    unsafe_allow_html=True
+)
 st.image("tips.png", use_container_width=True)
