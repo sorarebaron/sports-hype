@@ -76,7 +76,7 @@ if uploaded_file:
         st.error(f"Error processing file: {e}")
 
 st.markdown(
-    "<p style='font-size:12px; color: orange;'>no shoes / no shirts / no dice</p>",
+    "<p style='font-size:13px; color: green;'>no shoes / no shirts / no dice</p>",
     unsafe_allow_html=True
 )
 st.image("tips.png", use_container_width=True)
