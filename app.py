@@ -12,36 +12,43 @@ GREEN = "#61B50E"
 MAX_PLAYERS = 100
 MAX_NAME_LENGTH = 16
 
-# Inject custom CSS for glowing border
-st.markdown(
-    """
+# Inject CSS for glow and layout fixes
+st.markdown("""
     <style>
-    .glow-box {
-        border: 3px solid #FFA500;
-        border-radius: 15px;
-        padding: 25px;
-        box-shadow:
-            0 0 10px #FFA500,
-            0 0 20px #FFA500,
-            0 0 30px #39FF14,
-            0 0 40px #39FF14;
-        background-color: #121212;
-        margin-top: 20px;
-    }
+        .glow-container {
+            border: 3px solid #F6770E;
+            box-shadow: 0 0 15px 5px #61B50E;
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 25px;
+        }
+        .glow-container-results {
+            border: 3px solid #61B50E;
+            box-shadow: 0 0 20px 8px #F6770E;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        .centered {
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+        }
     </style>
-    """,
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 # App Title
 st.image("DK-Ownership-Header.png", use_container_width=True)
+st.markdown("<div class='glow-container'></div>", unsafe_allow_html=True)
 
-# Start glowing box
-st.markdown('<div class="glow-box">', unsafe_allow_html=True)
 
 # File uploader
 uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
 if uploaded_file:
+    st.markdown("<div class='glow-container-results centered'>", unsafe_allow_html=True)
     try:
         df = pd.read_csv(uploaded_file)
 
@@ -92,14 +99,16 @@ if uploaded_file:
         output_file = "draftkings_ownership_final.png"
         plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
         st.image(output_file)
+        
         with open(output_file, "rb") as f:
             st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
 
-# End glowing box
-st.markdown('</div>', unsafe_allow_html=True)
-
 st.markdown("### no shoes / no shirts / no tips 🎲🎲")
 st.image("tips.png", use_container_width=True)
+
+
