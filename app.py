@@ -1,20 +1,20 @@
-i
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from PIL import Image
 
 # Constants
 BACKGROUND_COLOR = "#1a1a1a"
 TEXT_COLOR = "white"
-ORANGE = "#F6770E"
-GREEN = "#61B50E"
-MAX_PLAYERS = 100
-MAX_NAME_LENGTH = 16
+ORANGE = "#ff6600"
+GREEN = "#00ff88"
+MAX_FIGHTERS = 30
 
 # App Title
-st.image("DK-Ownership-Header.png", use_container_width=True)
-
+st.set_page_config(page_title="DraftKings MMA Ownership Report", layout="centered")
+st.title("🥊 DraftKings MMA Ownership Report")
 
 # File uploader
 uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
@@ -28,17 +28,7 @@ if uploaded_file:
         df.dropna(inplace=True)
         df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
         df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_PLAYERS)
-
-        # Abbreviate long names
-        def abbreviate_name(name):
-            if len(name) > MAX_NAME_LENGTH:
-                parts = name.split()
-                if len(parts) >= 2:
-                    return f"{parts[0][0]}. {' '.join(parts[1:])}"
-            return name
-
-        df["PLAYER"] = df["PLAYER"].apply(abbreviate_name)
+        df = df.head(MAX_FIGHTERS)
 
         # Prepare for two-column layout
         half = (len(df) + 1) // 2
@@ -49,32 +39,35 @@ if uploaded_file:
         ax.set_facecolor(BACKGROUND_COLOR)
         ax.axis("off")
 
-        # Headers
-        ax.text(0.10, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.42, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.58, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.90, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        # DraftKings logo
+        try:
+            logo = Image.open("dk_logo.png")
+            fig.figimage(logo, xo=320, yo=680, zorder=1, alpha=0.7)
+        except:
+            pass
 
-        # Draw player names and ownership
+        # Headers
+        ax.text(0.15, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.38, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+        ax.text(0.60, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.83, 0.94, "%DRAFTED", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+
+        # Draw fighter names and ownership
         for i in range(len(left_col)):
             y = 0.9 - i * 0.035
-            ax.text(0.10, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.42, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+            ax.text(0.15, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.38, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
         for i in range(len(right_col)):
             y = 0.9 - i * 0.035
-            ax.text(0.58, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.90, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
+            ax.text(0.60, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
+            ax.text(0.83, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
 
         # Save to file
-        output_file = "draftkings_ownership_final.png"
+        output_file = "draftkings_ownership_v2.png"
         plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
         st.image(output_file)
         with open(output_file, "rb") as f:
             st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
 
-
     except Exception as e:
         st.error(f"Error processing file: {e}")
-
-st.markdown("### no shoes / no shirts / no tips 🎲🎲")
-st.image("tips.png", use_container_width=True)
