@@ -12,29 +12,27 @@ GREEN = "#61B50E"
 MAX_PLAYERS = 100
 MAX_NAME_LENGTH = 16
 
-# App Title
-st.image("DK-Ownership-Header.png", use_container_width=True)
-
-# Glowing Border CSS
-st.markdown(
-    '''
+# Glow box styling
+st.markdown("""
     <style>
-        .glow-box {
-            background-color: #1a1a1a;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px #61B50E, 0 0 20px #F6770E;
-            margin-bottom: 20px;
-        }
+    .glow-box {
+        background-color: #111111;
+        border: 3px solid #FFA500;
+        border-radius: 20px;
+        box-shadow: 0 0 25px #FFA500, 0 0 50px #39FF14;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
     </style>
-    ''',
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
+
+# App Title
+st.markdown('<div class="glow-box">', unsafe_allow_html=True)
+st.image("DK-Ownership-Header.png", use_container_width=True)
 
 # File uploader
 uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
 if uploaded_file:
-    st.markdown('<div class="glow-box">', unsafe_allow_html=True)
     try:
         df = pd.read_csv(uploaded_file)
 
@@ -61,7 +59,7 @@ if uploaded_file:
         left_col = df.iloc[:half].reset_index(drop=True)
         right_col = df.iloc[half:].reset_index(drop=True)
 
-        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
+        fig, ax = plt.subplots(figsize=(10, 0.6 * len(df)), facecolor=BACKGROUND_COLOR)
         ax.set_facecolor(BACKGROUND_COLOR)
         ax.axis("off")
 
@@ -90,7 +88,7 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
-    st.markdown("</div>", unsafe_allow_html=True)
 
+st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("### no shoes / no shirts / no tips 🎲🎲")
 st.image("tips.png", use_container_width=True)
