@@ -1,94 +1,101 @@
-
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from PIL import Image
+import base64
 
-# Constants
-BACKGROUND_COLOR = "#1a1a1a"
-TEXT_COLOR = "white"
-ORANGE = "#F6770E"
-GREEN = "#61B50E"
-MAX_PLAYERS = 100
-MAX_NAME_LENGTH = 16
+# Page config
+st.set_page_config(page_title="DraftKings Ownership", page_icon=":bar_chart:", layout="centered")
 
-# Glow box styling
+# Inject custom CSS
 st.markdown("""
     <style>
-    .glow-box {
-        background-color: #111111;
-        border: 3px solid #FFA500;
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap');
+
+    .glow-container {
+        margin-top: 30px;
+        border: 3px solid #00FF00;
+        padding: 25px 40px 10px 40px;
         border-radius: 20px;
-        box-shadow: 0 0 25px #FFA500, 0 0 50px #39FF14;
-        padding: 25px;
-        margin-bottom: 20px;
+        box-shadow: 0 0 20px #00FF00, 0 0 40px #FFA500;
+        background-color: #111111;
+    }
+
+    .glow-container h3 {
+        font-family: 'Roboto', sans-serif;
+        color: white;
+        text-align: center;
+        margin-top: 0;
+    }
+
+    .dataframe {
+        font-family: 'Roboto', sans-serif;
+        font-size: 16px;
+        color: white;
+    }
+
+    .download-button {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# App Title
-st.markdown('<div class="glow-box">', unsafe_allow_html=True)
-st.image("DK-Ownership-Header.png", use_container_width=True)
+# Logo Header
+st.image("DraftKings Ownership.png", use_column_width=True)
 
-# File uploader
-uploaded_file = st.file_uploader("Upload DraftKings CSV", type=["csv"])
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file)
+# Upload Section
+st.subheader("Upload DraftKings CSV")
+uploaded_file = st.file_uploader("Drag and drop file here", type=["csv"])
 
-        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
-        df = df.iloc[:, [7, 9]]
-        df.columns = ["PLAYER", "%DRAFTED"]
-        df.dropna(inplace=True)
-        df["%DRAFTED"] = df["%DRAFTED"].str.rstrip("%").astype(float)
-        df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
-        df = df.head(MAX_PLAYERS)
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df = df[["PLAYER", "DRAFT"]]
+    df = df.sort_values(by="DRAFT", ascending=False)
 
-        # Abbreviate long names
-        def abbreviate_name(name):
-            if len(name) > MAX_NAME_LENGTH:
-                parts = name.split()
-                if len(parts) >= 2:
-                    return f"{parts[0][0]}. {' '.join(parts[1:])}"
-            return name
+    mid = len(df) // 2 + len(df) % 2
+    left_df = df.iloc[:mid].reset_index(drop=True)
+    right_df = df.iloc[mid:].reset_index(drop=True)
 
-        df["PLAYER"] = df["PLAYER"].apply(abbreviate_name)
+    def make_rows(ldf, rdf):
+        rows = ""
+        for i in range(len(ldf)):
+            left_player = ldf.loc[i, "PLAYER"]
+            left_draft = f"{ldf.loc[i, 'DRAFT']:.2f}%"
+            if i < len(rdf):
+                right_player = rdf.loc[i, "PLAYER"]
+                right_draft = f"{rdf.loc[i, 'DRAFT']:.2f}%"
+            else:
+                right_player = ""
+                right_draft = ""
+            rows += f"<tr><td style='color:orange;font-weight:bold'>{left_player}</td><td style='color:limegreen;font-weight:bold'>{left_draft}</td><td style='color:orange;font-weight:bold'>{right_player}</td><td style='color:limegreen;font-weight:bold'>{right_draft}</td></tr>"
+        return rows
 
-        # Prepare for two-column layout
-        half = (len(df) + 1) // 2
-        left_col = df.iloc[:half].reset_index(drop=True)
-        right_col = df.iloc[half:].reset_index(drop=True)
+    rows_html = make_rows(left_df, right_df)
 
-        fig, ax = plt.subplots(figsize=(10, 0.6 * len(df)), facecolor=BACKGROUND_COLOR)
-        ax.set_facecolor(BACKGROUND_COLOR)
-        ax.axis("off")
+    csv_data = uploaded_file.getvalue()
+    b64_csv = base64.b64encode(csv_data).decode()
 
-        # Headers
-        ax.text(0.10, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.42, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.58, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
-        ax.text(0.90, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
+    html = f"""
+    <div class="glow-container">
+        <table style='width:100%; text-align:left; border-collapse:separate; border-spacing: 60px 10px'>
+            <thead>
+                <tr>
+                    <th style='color:orange;font-size:18px;'>PLAYER</th>
+                    <th style='color:limegreen;font-size:18px;'>DRAFT</th>
+                    <th style='color:orange;font-size:18px;'>PLAYER</th>
+                    <th style='color:limegreen;font-size:18px;'>DRAFT</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+        <div class='download-button'>
+            <a href="data:file/csv;base64,{b64_csv}" download="ownership_report.csv">
+                <button style='background-color: #444444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;'>Download Ownership Report</button>
+            </a>
+        </div>
+    </div>
+    """
 
-        # Draw player names and ownership
-        for i in range(len(left_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.10, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.42, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-        for i in range(len(right_col)):
-            y = 0.9 - i * 0.035
-            ax.text(0.58, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
-            ax.text(0.90, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-
-        # Save to file
-        output_file = "draftkings_ownership_final.png"
-        plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
-        st.image(output_file)
-        with open(output_file, "rb") as f:
-            st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
-
-    except Exception as e:
-        st.error(f"Error processing file: {e}")
-
-st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("### no shoes / no shirts / no tips 🎲🎲")
-st.image("tips.png", use_container_width=True)
+    st.markdown(html, unsafe_allow_html=True)
