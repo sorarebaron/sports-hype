@@ -49,9 +49,9 @@ if uploaded_file:
         ax.axis("off")
 
         # Headers
-        ax.text(0.10, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.10, 0.94, "FIGHTER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
         ax.text(0.42, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
-        ax.text(0.58, 0.94, "PLAYER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
+        ax.text(0.58, 0.94, "FIGHTER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
         ax.text(0.90, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
         # Draw player names and ownership
