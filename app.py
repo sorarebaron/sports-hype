@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
 from PIL import Image
 
 # Constants
@@ -15,12 +14,14 @@ MAX_NAME_LENGTH = 16
 # App Title
 st.image("DK-Ownership-Header.png", use_container_width=True)
 
+
 # File uploader
 uploaded_file = st.file_uploader("", type=["csv"])
-
 if uploaded_file:
     try:
         df = pd.read_csv(uploaded_file)
+
+        # Assume player names are in column H (index 7) and %Drafted in J (index 9)
         df = df.iloc[:, [7, 9]]
         df.columns = ["PLAYER", "%DRAFTED"]
         df.dropna(inplace=True)
@@ -28,6 +29,7 @@ if uploaded_file:
         df = df.sort_values(by="%DRAFTED", ascending=False).reset_index(drop=True)
         df = df.head(MAX_PLAYERS)
 
+        # Abbreviate long names
         def abbreviate_name(name):
             if len(name) > MAX_NAME_LENGTH:
                 parts = name.split()
@@ -37,41 +39,14 @@ if uploaded_file:
 
         df["PLAYER"] = df["PLAYER"].apply(abbreviate_name)
 
-        # ── BATCH 2 STARTS HERE ──────────────────────────────────────
+        # Prepare for two-column layout
         half = (len(df) + 1) // 2
         left_col = df.iloc[:half].reset_index(drop=True)
         right_col = df.iloc[half:].reset_index(drop=True)
 
-        row_height = 0.30
-        header_pad = 1.2
-        fig_height = header_pad + half * row_height
-        # ── BATCH 2 ENDS HERE ────────────────────────────────────────
-
-        fig, ax = plt.subplots(figsize=(10, fig_height), facecolor=BACKGROUND_COLOR)
+        fig, ax = plt.subplots(figsize=(10, 8), facecolor=BACKGROUND_COLOR)
         ax.set_facecolor(BACKGROUND_COLOR)
         ax.axis("off")
-
-        # ── BATCH 1 STARTS HERE ──────────────────────────────────────
-        border_colors = [ORANGE, ORANGE, GREEN, GREEN]
-        alphas = [0.9, 0.5, 0.5, 0.9]
-        linewidths = [6, 10, 10, 6]
-        offsets = [0.005, 0.010, 0.015, 0.020]
-
-        for color, alpha, lw, offset in zip(border_colors, alphas, linewidths, offsets):
-            rect = FancyBboxPatch(
-                (0 + offset, 0 + offset),
-                1 - 2 * offset,
-                1 - 2 * offset,
-                boxstyle="round,pad=0",
-                linewidth=lw,
-                edgecolor=color,
-                facecolor="none",
-                alpha=alpha,
-                transform=ax.transAxes,
-                clip_on=False
-            )
-            ax.add_patch(rect)
-        # ── BATCH 1 ENDS HERE ────────────────────────────────────────
 
         # Headers
         ax.text(0.10, 0.94, "FIGHTER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
@@ -79,41 +54,42 @@ if uploaded_file:
         ax.text(0.58, 0.94, "FIGHTER", color=ORANGE, fontsize=16, fontweight="bold", ha="left")
         ax.text(0.90, 0.94, "DRAFT", color=GREEN, fontsize=16, fontweight="bold", ha="right")
 
-        # ── BATCH 3 STARTS HERE ──────────────────────────────────────
-        y_start = 0.90
-        y_step = 0.85 / half
-
+        # Draw player names and ownership
         for i in range(len(left_col)):
-            y = y_start - i * y_step
+            y = 0.9 - i * 0.035
             ax.text(0.10, y, left_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
             ax.text(0.42, y, f'{left_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-
         for i in range(len(right_col)):
-            y = y_start - i * y_step
+            y = 0.9 - i * 0.035
             ax.text(0.58, y, right_col.at[i, "PLAYER"], color=TEXT_COLOR, fontsize=13, ha="left")
             ax.text(0.90, y, f'{right_col.at[i, "%DRAFTED"]:.2f}%', color=TEXT_COLOR, fontsize=13, ha="right")
-        # ── BATCH 3 ENDS HERE ────────────────────────────────────────
 
+        # Save to file
         output_file = "draftkings_ownership_final.png"
         plt.savefig(output_file, dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
         st.image(output_file)
         with open(output_file, "rb") as f:
             st.download_button("Download Ownership Report", f, file_name=output_file, mime="image/png")
 
+
     except Exception as e:
         st.error(f"Error processing file: {e}")
 
 st.markdown("<br>", unsafe_allow_html=True)
+
 st.markdown(
     "<p style='font-size:26px; color: #F6770E;'>step 1: upload CSV<br><span style='color: #61B50E;'>step 2: download report</span></p>",
     unsafe_allow_html=True
 )
+
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
+
 st.markdown(
     "<p style='font-size:18px; color:#aaa;'>no shoes / no shirts / no tips</p>",
     unsafe_allow_html=True
 )
+
 st.image("tips.png", use_container_width=True)
